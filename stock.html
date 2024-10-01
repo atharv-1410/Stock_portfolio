@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Stock Management</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f4f4f4;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .net-profit-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .net-profit-box {
+            flex: 1;
+            text-align: center;
+            font-size: 1.2em;
+            padding: 20px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            margin-right: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .net-profit-box:last-child {
+            margin-right: 0;
+        }
+
+        .net-profit-box:hover {
+            background-color: #d1d1d1;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table,
+        th,
+        td {
+            border: 1px solid #ddd;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-right: 5px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .button-sell {
+            background-color: #28a745;
+        }
+
+        .button-sell:hover {
+            background-color: #1e7e34;
+        }
+
+        .button-remove {
+            background-color: red;
+        }
+
+        .button-remove:hover {
+            background-color: darkred;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+
+        .buttons {
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        canvas {
+            max-width: 100%;
+            margin: 20px auto;
+        }
+
+        @media (max-width: 768px) {
+            .net-profit-container {
+                flex-direction: column;
+            }
+
+            .net-profit-box {
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Interactive Stock Management</h1>
+
+        <!-- Net Profit Display -->
+        <div class="net-profit-container">
+            <div class="net-profit-box">
+                <strong>Total Invested Amount:</strong> $<span id="totalInvested">0.00</span>
+            </div>
+            <div class="net-profit-box">
+                <strong>Amount Acquired:</strong> $<span id="amountAcquired">0.00</span>
+            </div>
+            <div class="net-profit-box">
+                <strong>Net Profit:</strong> $<span id="netProfit">0.00</span>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="stockName">Stock Name:</label>
+            <input type="text" id="stockName" placeholder="Enter stock name">
+        </div>
+        <div class="form-group">
+            <label for="stockQty">Quantity:</label>
+            <input type="number" id="stockQty" placeholder="Enter quantity">
+        </div>
+        <div class="form-group">
+            <label for="stockPrice">Price:</label>
+            <input type="number" id="stockPrice" placeholder="Enter price">
+        </div>
+        <div class="buttons">
+            <button onclick="addStock()">Add Stock</button>
+            <button onclick="sellStock()" class="button-sell">Sell Stock</button>
+        </div>
+
+        <canvas id="stockChart"></canvas>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Stock Name</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                </tr>
+            </thead>
+            <tbody id="stockTableBody">
+                <tr>
+                    <td colspan="3">No stock available.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let stockList = [];
+        let netProfit = 0;
+        let totalInvested = 0;
+        let totalAcquired = 0;
+
+        // Initialize chart
+        const ctx = document.getElementById('stockChart').getContext('2d');
+        const stockChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [], // Stock names
+                datasets: [{
+                    label: 'Quantity',
+                    data: [], // Stock quantities
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        function addStock() {
+            const stockName = document.getElementById('stockName').value.trim();
+            const stockQty = parseInt(document.getElementById('stockQty').value);
+            const stockPrice = parseFloat(document.getElementById('stockPrice').value);
+
+            if (stockName && !isNaN(stockQty) && !isNaN(stockPrice) && stockQty > 0 && stockPrice > 0) {
+                const existingStockIndex = stockList.findIndex(stock => stock.name.toLowerCase() === stockName.toLowerCase());
+
+                if (existingStockIndex !== -1) {
+                    // If stock exists, update the quantity and price
+                    stockList[existingStockIndex].qty += stockQty;
+                    stockList[existingStockIndex].price = stockPrice; // Optionally update the price
+                } else {
+                    // Add new stock item
+                    stockList.push({
+                        name: stockName,
+                        qty: stockQty,
+                        price: stockPrice
+                    });
+                }
+
+                // Calculate total invested amount
+                totalInvested += stockQty * stockPrice;
+                updateTotalInvestedDisplay();
+
+                displayStocks();
+                updateChart();
+                clearForm();
+            } else {
+                alert('Please enter a valid stock name, quantity, and price.');
+            }
+        }
+
+        function sellStock() {
+            const stockName = document.getElementById('stockName').value.trim();
+            const stockQty = parseInt(document.getElementById('stockQty').value);
+
+            if (stockName && !isNaN(stockQty) && stockQty > 0) {
+                const existingStockIndex = stockList.findIndex(stock => stock.name.toLowerCase() === stockName.toLowerCase());
+
+                if (existingStockIndex !== -1) {
+                    if (stockList[existingStockIndex].qty >= stockQty) {
+                        const sellingPrice = parseFloat(document.getElementById('stockPrice').value);
+                        const saleAmount = (sellingPrice - stockList[existingStockIndex].price) * stockQty;
+                        netProfit += saleAmount;
+                        totalAcquired += sellingPrice * stockQty;
+
+                        updateAmountAcquiredDisplay();
+                        updateNetProfitDisplay();
+
+                        stockList[existingStockIndex].qty -= stockQty;
+
+                        if (stockList[existingStockIndex].qty === 0) {
+                            stockList.splice(existingStockIndex, 1); // Remove stock if quantity is zero
+                        }
+
+                        displayStocks();
+                        updateChart();
+                        clearForm();
+                    } else {
+                        alert('Not enough stock quantity to sell.');
+                    }
+                } else {
+                    alert('Stock not found.');
+                }
+            } else {
+                alert('Please enter a valid stock name and quantity to sell.');
+            }
+        }
+
+        function displayStocks() {
+            const stockTableBody = document.getElementById('stockTableBody');
+            stockTableBody.innerHTML = '';
+
+            if (stockList.length === 0) {
+                stockTableBody.innerHTML = '<tr><td colspan="3">No stock available.</td></tr>';
+                return;
+            }
+
+            stockList.forEach(stock => {
+                const row = `<tr>
+                                <td>${stock.name}</td>
+                                <td>${stock.qty}</td>
+                                <td>$${stock.price.toFixed(2)}</td>
+                            </tr>`;
+                stockTableBody.innerHTML += row;
+            });
+        }
+
+        function updateTotalInvestedDisplay() {
+            document.getElementById('totalInvested').textContent = totalInvested.toFixed(2);
+        }
+
+        function updateAmountAcquiredDisplay() {
+            document.getElementById('amountAcquired').textContent = totalAcquired.toFixed(2);
+        }
+
+        function updateNetProfitDisplay() {
+            document.getElementById('netProfit').textContent = netProfit.toFixed(2);
+        }
+
+        function updateChart() {
+            stockChart.data.labels = stockList.map(stock => stock.name);
+            stockChart.data.datasets[0].data = stockList.map(stock => stock.qty);
+            stockChart.update();
+        }
+
+        function clearForm() {
+            document.getElementById('stockName').value = '';
+            document.getElementById('stockQty').value = '';
+            document.getElementById('stockPrice').value = '';
+        }
+    </script>
+</body>
+
+</html>
